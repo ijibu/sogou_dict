@@ -58,7 +58,7 @@ func main() {
 	defer logfile.Close()
 
 	for i := 0; i < cupNum; i++ {
-		go getDict(logger, logfile, downDir)
+		go work(logger, logfile, downDir)
 	}
 	start()
 }
@@ -71,39 +71,45 @@ func start() {
 	}
 }
 
-func getDict(logger *log.Logger, logfile *os.File, downDir string) {
+func work(logger *log.Logger, logfile *os.File, downDir string) {
 	for {
 		id := <-c
 		code := strconv.Itoa(id)
-		getUrl := "http://pinyin.sogou.com/dict/cell.php?id=" + code
-		client := &http.Client{CheckRedirect: myRedirect}
-		resp, err := client.Get(getUrl)
-		if err == nil {
-			if resp.StatusCode == 200 {
-				logger.Println(logfile, code+":sucess"+strconv.Itoa(resp.StatusCode))
-				fmt.Println(code + ":sucess")
+		getDict(logger, logfile, downDir, code)
+	}
+}
 
-				fileName := downDir + code + ".html"
-				//不加os.O_RDWR的话，在linux下面无法写入文件。
-				f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0666) //其实这里的 O_RDWR应该是 O_RDWR|O_CREATE，也就是文件不存在的情况下就建一个空文件，但是因为windows下还有BUG，如果使用这个O_CREATE，就会直接清空文件，所以这里就不用了这个标志，你自己事先建立好文件。
-				if err != nil {
-					panic(err)
-				}
+func getDict(logger *log.Logger, logfile *os.File, downDir string, code string) {
+	getUrl := "http://pinyin.sogou.com/dict/cell.php?id=" + code
+	client := &http.Client{CheckRedirect: myRedirect}
+	resp, err := client.Get(getUrl)
+	if err == nil {
+		if resp.StatusCode == 200 {
+			logger.Println(logfile, code+":sucess"+strconv.Itoa(resp.StatusCode))
+			fmt.Println(code + ":sucess")
 
-				defer f.Close()
+			fileName := downDir + code + ".html"
+			//不加os.O_RDWR的话，在linux下面无法写入文件。
+			f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0666) //其实这里的 O_RDWR应该是 O_RDWR|O_CREATE，也就是文件不存在的情况下就建一个空文件，但是因为windows下还有BUG，如果使用这个O_CREATE，就会直接清空文件，所以这里就不用了这个标志，你自己事先建立好文件。
+			if err != nil {
+				panic(err)
+			}
 
-				//处理返回的html内容
-				body, err := ioutil.ReadAll(resp.Body)
-				if err != nil {
-					fmt.Println("http read error")
-				}
+			defer f.Close()
 
-				src := string(body)
+			//处理返回的html内容
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				fmt.Println("http read error")
+			}
 
-				//将HTML标签全转换成小写
-				re, _ := regexp.Compile("\\<[\\S\\s]+?\\>")
-				src = re.ReplaceAllStringFunc(src, strings.ToLower)
+			src := string(body)
 
+			//将HTML标签全转换成小写
+			re, _ := regexp.Compile("\\<[\\S\\s]+?\\>")
+			src = re.ReplaceAllStringFunc(src, strings.ToLower)
+
+			/*
 				//去除STYLE
 				re, _ = regexp.Compile("\\<style[\\S\\s]+?\\</style\\>")
 				src = re.ReplaceAllString(src, "")
@@ -111,22 +117,22 @@ func getDict(logger *log.Logger, logfile *os.File, downDir string) {
 				//去除SCRIPT
 				re, _ = regexp.Compile("\\<script[\\S\\s]+?\\</script\\>")
 				src = re.ReplaceAllString(src, "")
+			*/
 
-				//<div class="dlinfobox">
-				re, _ = regexp.Compile("\\<div class=\"dlinfobox\"\\>([\\S\\s]+?)\\</div\\>")
-				ret := re.FindString(src)
+			//<div class="dlinfobox">
+			re, _ = regexp.Compile("\\<div class=\"dlinfobox\"\\>([\\S\\s]+?)\\</div\\>")
+			ret := re.FindString(src)
 
-				buf := []byte(ret)
-				f.Write(buf)
-			} else {
-				logger.Println(logfile, code+":http get StatusCode"+strconv.Itoa(resp.StatusCode))
-				fmt.Println(code + ":" + strconv.Itoa(resp.StatusCode))
-			}
-			defer resp.Body.Close()
+			buf := []byte(ret)
+			f.Write(buf)
 		} else {
-			logger.Println(logfile, code+":http get error"+code)
-			fmt.Println(code + ":error")
+			logger.Println(logfile, code+":http get StatusCode"+strconv.Itoa(resp.StatusCode))
+			fmt.Println(code + ":" + strconv.Itoa(resp.StatusCode))
 		}
+		defer resp.Body.Close()
+	} else {
+		logger.Println(logfile, code+":http get error"+code)
+		fmt.Println(code + ":error")
 	}
 }
 
