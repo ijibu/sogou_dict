@@ -1,0 +1,6 @@
+scel/
+data/
+*.log
+*.exe
+*.tar.gz
+*.csv
