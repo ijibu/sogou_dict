@@ -114,9 +114,9 @@ func getDict(logger *log.Logger, logfile *os.File, downDir string) {
 
 				//<div class="dlinfobox">
 				re, _ = regexp.Compile("\\<div class=\"dlinfobox\"\\>([\\S\\s]+?)\\</div\\>")
-				ret := re.FindAllString(src, -1)
+				ret := re.FindString(src)
 
-				buf := []byte(ret[0])
+				buf := []byte(ret)
 				f.Write(buf)
 			} else {
 				logger.Println(logfile, code+":http get StatusCode"+strconv.Itoa(resp.StatusCode))
