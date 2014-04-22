@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"unicode/utf8"
 )
 
 const (
@@ -12,7 +13,7 @@ const (
 )
 
 func main() {
-	scel2txt("./scel/1001-41.scel")
+	scel2txt("../data/scel/1001-41.scel")
 }
 
 func scel2txt(fileName string) {
@@ -28,25 +29,23 @@ func scel2txt(fileName string) {
 		log.Fatalf("确认你选择的文件 \"%s\"是搜狗(.scel)词库? \n", fileName)
 	}
 
-	len1 := 0x338 - 0x130
-	len2 := 0x540 - 0x338
-	len3 := 0xd40 - 0x540
-	len4 := startPy - 0xd40
-
-	dicName := make([]byte, len1)
-	dicType := make([]byte, len2)
-	dicDesc := make([]byte, len3)
-	dicDemo := make([]byte, len4)
+	dicName := make([]byte, 65)
+	dicType := make([]byte, 65)
+	dicDesc := make([]byte, 65)
+	dicDemo := make([]byte, 65)
 
 	f.ReadAt(dicName, 0x130)
 	f.ReadAt(dicType, 0x338)
 	f.ReadAt(dicDesc, 0x540)
 	f.ReadAt(dicDemo, 0xd40)
+	if string(dicName[0:8]) != "\xA0\x5B\x69\x72\xCD\x8B\x47\x6C" {
+		fmt.Println("词库名错误")
+	}
 
-	fmt.Println("词库名：" + unicode2utf8str(dicName, len1))
-	fmt.Println("词库类型：" + unicode2utf8str(dicType, len2))
-	fmt.Println("描述信息：" + unicode2utf8str(dicDesc, len3))
-	fmt.Println("词库示例：" + unicode2utf8str(dicDemo, len4))
+	fmt.Println("词库名：" + string(unicode2utf8str(dicName)))
+	fmt.Println("词库类型：" + string(unicode2utf8str(dicType)))
+	fmt.Println("描述信息：" + string(unicode2utf8str(dicDesc)))
+	fmt.Println("词库示例：" + string(unicode2utf8str(dicDemo)))
 
 	//getPyTable(data[startPy:startChinese])
 	//getChinese(data[startChinese:])
@@ -58,36 +57,43 @@ func getPyTable(data []byte) {
 }
 
 func getChinese(data []byte) {
-	return
-}
+	pos := 0
+	length := len(data)
+	for pos < length {
 
-func unicode2utf8str(input []byte, insize int) (outstr string) {
-	outstr = "\\0"
-
-	for i := 0; i < insize/2; i++ {
-		out := unicode2utf8char(int(input[i]))
-		outstr += string(out)
 	}
 	return
 }
 
-func unicode2utf8char(in int) (out int) {
+func unicode2utf8str(input []byte) (outstr []byte) {
+	size := len(input)
+	for i := 0; i < size-1; i += 2 {
+		var b uint16                //input是byte数组，即uint8类型，要组合成两个字节长的16进制数，就得用uinit16
+		b = uint16(input[i+1]) << 8 //作为高字节，向左移动8位，即一个字节
+		b |= uint16(input[i])       //作为低字节
+		out := unicode2utf8char(b)
+		for j := 0; j < len(out); j++ {
+			outstr = append(outstr, out[j])
+		}
+	}
+	return outstr
+}
+
+func unicode2utf8char(in uint16) (out []byte) {
+	n := 0
 	if in >= 0x0000 && in <= 0x007f {
-		out = in
-		return
+		n = 1
 	} else if in >= 0x0080 && in <= 0x07ff {
-		out = 0xc0 | (in >> 6)
-		out++
-		out = 0x80 | (in & (0xff >> 2))
-		return
+		n = 2
 	} else if in >= 0x0800 && in <= 0xffff {
-		out = 0xe0 | (in >> 12)
-		out++
-		out = 0x80 | (in >> 6 & 0x003f)
-		out++
-		out = 0x80 | (in & (0xff >> 2))
-		return
+		n = 3
 	}
-	fmt.Println("输入的不是short吧,解析有问题\n")
+	if n == 0 {
+		fmt.Println("输入的不是short吧,解析有问题\n")
+	}
+
+	buf := make([]byte, n)
+	size := utf8.EncodeRune(buf, rune(in))
+	out = buf[:size]
 	return
 }
