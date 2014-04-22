@@ -17,6 +17,7 @@ typedef struct PY_
 
 int unicode2utf8char(unsigned short in, unsigned char * out)
 {
+	//out 为unsigned char str[16]={0};		//刚好两个字节
     if (in >= 0x0000 && in <= 0x007f)
     {
         *out=in;
@@ -44,18 +45,22 @@ int unicode2utf8char(unsigned short in, unsigned char * out)
 
 int unicode2utf8str(char * in, int insize,unsigned char * out)
 {
-    unsigned char str[16]={0};
+    unsigned char str[16]={0};		//刚好两个字节
     unsigned short tmp[insize/2];
     int i;
 
     *out='\0';
-    memcpy(tmp,in,insize);
+    memcpy(tmp,in,insize);	//拷贝in所指向的内存前insize个字节tmp
 
     for( i=0;i<insize/2;i++)
     {
-            memset(str,0,sizeof(str));
-            unicode2utf8char(tmp[i],str);
-            strcat(out,str);
+        memset(str,0,sizeof(str));	//内存初始化，两个字节全部设置为0。
+		printf("%X", tmp[i]);		//5BA0
+        printf("\n");
+        unicode2utf8char(tmp[i],str);
+        printf("%X", str);			//351EB9D0
+        printf("\n");
+        strcat(out,str);	//连接两字符串
     }
     return 0;
 }
@@ -259,12 +264,12 @@ int main(int argc ,char * argv[])
         return -1;
     }
     fgets(str,8+1,fp);
-    if( memcmp(str,"\x40\x15\x00\x00\x44\x43\x53\x01",8))
+    if( memcmp(str,"\x40\x15\x00\x00\x44\x43\x53\x01",8))	//比较内存区域
     {
         printf("你确认你选择的是搜狗(.scel)词库?\n");
         return 0;
     }
-    memset(str,0,sizeof(str));
+    memset(str,0,sizeof(str));	//将str指向的内存空间前sizeof(str)个字节填入值0
 
     fseek(fp, 0x130, SEEK_SET);
     fgets(str,64+1,fp);
